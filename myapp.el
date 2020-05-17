@@ -11,7 +11,7 @@
 (defun myapp--parse
     ()
   "Parses repository file and returns alist."
-  (mylet [re (rx bow (group-n 1  (+ alnum) eow )
+  (mylet [re (rx bol (group-n 1  (+ word) eol )
 		 (+ (or "\n" (+ blank)))
 		 (group-n 2 (+ anything) ".jar"))
 	     s (myapp--get-repository-content)
@@ -19,6 +19,27 @@
 	 (loop for (_ k v) in (s-match-strings-all re s)
 	       do (setq ret (a-assoc ret k v)))
 	 ret))
+
+(defun myapp--register-new-file (label path)
+  (with-temp-buffer
+    (insert "\n" label "\n" path "\n")
+    (write-region (point-min) (point-max) myapp--repository-file t))
+  (message "%s was registered." label))
+
+(defun myapp-register()
+  (interactive)
+  (mylet [files (directory-files default-directory t (rx ".jar" eow))
+		m (loop for f in files
+			with ret = (a-alist)
+			do
+			(setq ret (a-assoc ret
+					   (file-name-nondirectory f)
+					   f))
+			return ret)
+		chosen-file (ido-completing-read
+			     "select file: " (a-keys m))
+		label (read-string "label: ")]
+	 (myapp--register-new-file label chosen-file)))
 
 ;; demo
 
