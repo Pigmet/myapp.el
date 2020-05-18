@@ -61,6 +61,18 @@ Updates data file by writing the content of coll."
   (interactive)
   (find-file myapp--repository-file))
 
+;; delete
+
+(defun myapp-delete-jar ()
+  (interactive)
+  (mylet [cur-coll (myapp--parse-data-file)
+		   ret (ido-completing-read "choose: " (-map '-first-item cur-coll))
+		   coll (-filter
+			 (-lambda ((label path)) (not (equal label ret)))
+			 cur-coll)]
+	 (myapp--update-data-file coll)
+	 (message "%s was deleted." ret)))
+
 ;; run
 
 (defun myapp--run-jar (path)
