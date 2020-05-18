@@ -1,35 +1,39 @@
 ;; Registers and runs jar files. 
 
-;; parse repository
+(setq myapp-data-file "/Users/naka/.emacs.d/mylib/myapp/data.xml")
 
-;; TODO: How to set the path automatically in the same directory?
+(defun myapp--new-xml (label content)
+  (format "<%s>%s</%s>" label content label))
 
-;; try xml 
-(setq myapp--repository-file "/Users/naka/.emacs.d/mylib/myapp/myapp-repository")
+(defun myapp--coll->string (coll)
+  (mylet [s  (with-temp-buffer
+	       (loop for (label path) in coll
+		     do
+		     (insert
+		      (myapp--new-xml "file"
+				      (concat 
+				       (myapp--new-xml "label" label)
+				       (myapp--new-xml "path" path)))))
+	       (buffer-string))]
+	 (myapp--new-xml "data" s)))
 
-(defun myapp--get-repository-content ()
-  (with-temp-buffer
-    (insert-file-contents
-     myapp--repository-file)
-    (buffer-string)))
+(defun myapp--update-data-file (coll)
+  "coll -> list of (label path)"
+  (with-temp-file myapp-data-file
+    (insert (myapp--coll->string coll))))
 
-(defun myapp--parse
-    ()
-  "Parses repository file and returns alist."
-  (mylet [re (rx bol (group-n 1  (+ word) eol )
-		 (+ (or "\n" (+ blank)))
-		 (group-n 2 (+ anything) ".jar"))
-	     s (myapp--get-repository-content)
-	     ret (a-alist)]
-	 (loop for (_ k v) in (s-match-strings-all re s)
-	       do (setq ret (a-assoc ret k v)))
-	 ret))
+;;(myapp--update-data-file '(("plot" "path1") ("crop" "path2")))
 
-(defun myapp--register-new-file (label path)
-  (with-temp-buffer
-    (insert "\n" label "\n" path "\n")
-    (write-region (point-min) (point-max) myapp--repository-file t))
-  (message "%s was registered." label))
+(defun myapp--parse-data-file()
+  (->>  (with-temp-buffer
+	  (insert-file-contents "/Users/naka/.emacs.d/mylib/myapp/data.xml")
+	  (libxml-parse-xml-region (point-min) (point-max)))
+	(-filter 'listp)
+	(-filter (-lambda (x) (eq (-first-item x) 'file)))
+	(-map  (-lambda ((_ _  a b)) (list (-last-item a) (-last-item b))))
+	(-map (-lambda (coll) (-map 's-trim coll)))))
+
+(defun myapp--register-new-file (label path))
 
 (defun myapp-register()
   "Registers new a jar file in the current directory
@@ -64,7 +68,3 @@
 	 (myapp--run-jar (a-get coll k))))
 
 (provide 'myapp)
-
-
-
-
