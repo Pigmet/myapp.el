@@ -6,19 +6,20 @@
   (format "<%s>%s</%s>" label content label))
 
 (defun myapp--coll->string (coll)
-  (mylet [s  (with-temp-buffer
-	       (loop for (label path) in coll
-		     do
-		     (insert
-		      (myapp--new-xml "file"
-				      (concat 
-				       (myapp--new-xml "label" label)
-				       (myapp--new-xml "path" path)))))
-	       (buffer-string))]
+  (mylet [s (with-temp-buffer
+	      (loop for (label path) in coll
+		    do
+		    (insert
+		     (myapp--new-xml "file"
+				     (concat 
+				      (myapp--new-xml "label" label)
+				      (myapp--new-xml "path" path)))))
+	      (buffer-string))]
 	 (myapp--new-xml "data" s)))
 
 (defun myapp--update-data-file (coll)
-  "coll -> list of (label path)"
+  "coll -> list of (label path)
+Updates data file by writing the content of coll."
   (with-temp-file myapp-data-file
     (insert (myapp--coll->string coll))))
 
@@ -33,23 +34,28 @@
 	(-map  (-lambda ((_ _  a b)) (list (-last-item a) (-last-item b))))
 	(-map (-lambda (coll) (-map 's-trim coll)))))
 
-(defun myapp--register-new-file (label path))
+(defun myapp--register-impl (label path)
+  (myapp--update-data-file (cons  (list label path) (myapp--parse-data-file))))
+
+(defun myapp--valid-label-p (label)
+  (not (-some (-lambda (s) (equal s label))
+	      (-map '-first-item (myapp--parse-data-file)))))
 
 (defun myapp-register()
   "Registers new a jar file in the current directory
  so that it can be executed from myapp-run."
   (interactive)
   (mylet [files (directory-files default-directory t (rx ".jar" ))
-		m (a-alist)]
-	 (loop for f in files
-	       do
-	       (setq m (a-assoc m
-				(file-name-nondirectory f)
-				f)))
-	 (mylet [k (ido-completing-read
-		    "select file: " (reverse (a-keys m)))
-		   label (read-string "label: ")]
-		(myapp--register-new-file label (a-get m k)))))
+		coll-name (-map 'file-name-nondirectory files)
+		choice (ido-completing-read
+			"choose file: " coll-name)
+		path (-first
+		      (-lambda (s) (equal choice (file-name-nondirectory s)))
+		      files)
+		label (read-string "Enter label: ")]
+	 (if (myapp--valid-label-p label)
+	     (myapp--register-impl label path)
+	   (error "%s already exists." label))))
 
 (defun myapp-edit-repository()
   (interactive)
@@ -62,9 +68,9 @@
 
 (defun myapp-run ()
   (interactive)
-  (mylet [coll (myapp--parse)
-	       k (ido-completing-read "select app: "
-				      (a-keys coll))]
-	 (myapp--run-jar (a-get coll k))))
+  (mylet [coll (myapp--parse-data-file)
+	       k (ido-completing-read "select app: " (-map '-first-item coll))
+	       (_ path) (-first (-lambda ((label path)) (equal label k)) coll)]
+	 (myapp--run-jar path)))
 
 (provide 'myapp)
