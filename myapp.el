@@ -57,10 +57,6 @@ Updates data file by writing the content of coll."
 	     (myapp--register-impl label path)
 	   (error "%s already exists." label))))
 
-(defun myapp-edit-repository()
-  (interactive)
-  (find-file myapp--repository-file))
-
 ;; delete
 
 (defun myapp-delete-jar ()
@@ -72,6 +68,26 @@ Updates data file by writing the content of coll."
 			 cur-coll)]
 	 (myapp--update-data-file coll)
 	 (message "%s was deleted." ret)))
+
+;; status
+
+(setq myapp-buffer (generate-new-buffer "myapp"))
+
+(defun myapp-status ()
+  (interactive)
+  (mylet [coll (myapp--parse-data-file)]
+	 (with-current-buffer
+	     myapp-buffer
+	   (erase-buffer)
+	   (loop for (label path) in coll
+		 do
+		 (insert-text-button (concat label "\n")
+				     'action
+				     (lexical-let ((path path))
+				       (-lambda (b)
+					 (find-file-other-window
+					  (file-name-directory path)))))))
+	 (switch-to-buffer-other-window myapp-buffer)))
 
 ;; run
 
