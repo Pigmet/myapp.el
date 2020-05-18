@@ -1,11 +1,16 @@
+;; Registers and runs jar files. 
+
 ;; parse repository
 
-(setq myapp--repository-file "myapp-repository")
+;; TODO: How to set the path automatically in the same directory?
+
+;; try xml 
+(setq myapp--repository-file "/Users/naka/.emacs.d/mylib/myapp/myapp-repository")
 
 (defun myapp--get-repository-content ()
   (with-temp-buffer
     (insert-file-contents
-     (concat default-directory myapp--repository-file))
+     myapp--repository-file)
     (buffer-string)))
 
 (defun myapp--parse
@@ -27,21 +32,26 @@
   (message "%s was registered." label))
 
 (defun myapp-register()
+  "Registers new a jar file in the current directory
+ so that it can be executed from myapp-run."
   (interactive)
-  (mylet [files (directory-files default-directory t (rx ".jar" eow))
-		m (loop for f in files
-			with ret = (a-alist)
-			do
-			(setq ret (a-assoc ret
-					   (file-name-nondirectory f)
-					   f))
-			return ret)
-		chosen-file (ido-completing-read
-			     "select file: " (a-keys m))
-		label (read-string "label: ")]
-	 (myapp--register-new-file label chosen-file)))
+  (mylet [files (directory-files default-directory t (rx ".jar" ))
+		m (a-alist)]
+	 (loop for f in files
+	       do
+	       (setq m (a-assoc m
+				(file-name-nondirectory f)
+				f)))
+	 (mylet [k (ido-completing-read
+		    "select file: " (reverse (a-keys m)))
+		   label (read-string "label: ")]
+		(myapp--register-new-file label (a-get m k)))))
 
-;; demo
+(defun myapp-edit-repository()
+  (interactive)
+  (find-file myapp--repository-file))
+
+;; run
 
 (defun myapp--run-jar (path)
   (shell-command (concat "java -jar " path)))
@@ -53,5 +63,8 @@
 				      (a-keys coll))]
 	 (myapp--run-jar (a-get coll k))))
 
-;; add new-file 
-(a-get myapp-list "pdfcrop")
+(provide 'myapp)
+
+
+
+
